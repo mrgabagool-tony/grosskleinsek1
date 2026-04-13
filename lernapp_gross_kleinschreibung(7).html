@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Groß- und Kleinschreibung – Lernapp</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #ffffff;
+  --bg2: #f5f5f4;
+  --bg3: #eeede8;
+  --text: #1a1a18;
+  --text2: #5f5e5a;
+  --text3: #888780;
+  --border: rgba(0,0,0,0.12);
+  --border2: rgba(0,0,0,0.22);
+  --success-bg: #eaf3de;
+  --success: #3b6d11;
+  --danger-bg: #fcebeb;
+  --danger: #a32d2d;
+  --info-bg: #e6f1fb;
+  --info: #185fa5;
+  --accent: #378add;
+  --accent-dark: #185fa5;
+  --accent-text: #e6f1fb;
+  --radius: 10px;
+  --radius-lg: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1c;
+    --bg2: #2a2a28;
+    --bg3: #323230;
+    --text: #e8e6dc;
+    --text2: #a8a69e;
+    --text3: #6e6c65;
+    --border: rgba(255,255,255,0.1);
+    --border2: rgba(255,255,255,0.2);
+    --success-bg: #173404;
+    --success: #97c459;
+    --danger-bg: #501313;
+    --danger: #f09595;
+    --info-bg: #042c53;
+    --info: #85b7eb;
+    --accent: #378add;
+    --accent-dark: #85b7eb;
+    --accent-text: #042c53;
+  }
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg3);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+#app {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+.card {
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.score-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg2);
+  border-radius: var(--radius);
+  border: 0.5px solid var(--border);
+}
+.score-bar .label { font-size: 12px; color: var(--text2); margin-bottom: 2px; }
+.score-bar .value { font-size: 22px; font-weight: 500; color: var(--text); }
+
+.progress-dots { display: flex; gap: 6px; align-items: center; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border2); transition: background 0.3s; }
+.dot.done { background: var(--success); }
+.dot.active { background: var(--accent); }
+
+.task-title { font-size: 19px; font-weight: 500; color: var(--text); margin-bottom: 0.4rem; }
+.task-instr { font-size: 14px; color: var(--text2); margin-bottom: 1.25rem; line-height: 1.6; }
+.round-counter { font-size: 12px; color: var(--text3); margin-bottom: 12px; }
+
+.drag-word {
+  display: inline-block;
+  padding: 8px 14px;
+  margin: 4px;
+  background: var(--bg);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.12s, border-color 0.12s, background 0.12s;
+  color: var(--text);
+  touch-action: none;
+}
+.drag-word:hover { border-color: var(--accent); transform: scale(1.04); }
+.drag-word.dragging { opacity: 0.35; transform: scale(0.95); }
+.drag-word.correct { border-color: var(--success); background: var(--success-bg); color: var(--success); cursor: default; }
+.drag-word.wrong { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); cursor: default; }
+.drag-word.either { border-color: var(--success); background: var(--success-bg); color: var(--success); cursor: default; }
+
+.drop-zone {
+  min-height: 80px;
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  transition: border-color 0.2s, background 0.2s;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+}
+.drop-zone.over { border-color: var(--accent); background: var(--info-bg); }
+.drop-zone-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  margin-bottom: 6px;
+  padding: 0 2px;
+}
+
+.zones-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+
+.word-bank {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  min-height: 52px;
+  padding: 6px;
+  background: var(--bg2);
+  border-radius: var(--radius);
+  border: 0.5px solid var(--border);
+}
+
+.check-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.check-btn:hover { background: var(--accent-dark); }
+.check-btn:active { transform: scale(0.98); }
+.check-btn:disabled { background: var(--bg3); color: var(--text3); cursor: default; }
+
+.feedback {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  margin-top: 10px;
+  display: none;
+  line-height: 1.5;
+}
+.feedback.show { display: block; }
+.feedback.good { background: var(--success-bg); color: var(--success); }
+.feedback.bad { background: var(--danger-bg); color: var(--danger); }
+
+.next-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border2);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: none;
+}
+.next-btn.show { display: block; }
+.next-btn:hover { background: var(--bg2); }
+
+.sentence {
+  font-size: 16px;
+  color: var(--text);
+  line-height: 2.6;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.lücke {
+  display: inline-block;
+  min-width: 110px;
+  height: 32px;
+  border-bottom: 2px solid var(--border2);
+  vertical-align: bottom;
+  text-align: center;
+  padding: 0 6px;
+  transition: border-color 0.2s, background 0.2s;
+  border-radius: 4px 4px 0 0;
+}
+.lücke.over { border-color: var(--accent); background: var(--info-bg); }
+
+.points-pop {
+  position: absolute;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--success);
+  pointer-events: none;
+  animation: floatUp 0.9s ease-out forwards;
+  white-space: nowrap;
+}
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  60% { opacity: 1; transform: translateY(-24px) scale(1.15); }
+  100% { opacity: 0; transform: translateY(-44px) scale(1); }
+}
+
+.result-big { text-align: center; padding: 2rem 1rem 1.5rem; }
+.medal-icon { font-size: 52px; margin-bottom: 0.5rem; }
+.score-num { font-size: 58px; font-weight: 500; color: var(--text); line-height: 1; }
+.score-label { font-size: 15px; color: var(--text2); margin-top: 6px; margin-bottom: 1.5rem; }
+.total-label { font-size: 13px; color: var(--text2); }
+.total-num { font-size: 24px; font-weight: 500; color: var(--info); margin-top: 4px; }
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 0.5px solid var(--border);
+  font-size: 13px;
+  color: var(--text2);
+}
+.history-row:last-child { border: none; }
+.history-row strong { color: var(--text); }
+
+.start-screen { text-align: center; padding: 2.5rem 1rem 2rem; }
+.start-screen h1 { font-size: 24px; font-weight: 500; margin-bottom: 0.5rem; color: var(--text); }
+.start-screen p { font-size: 14px; color: var(--text2); margin-bottom: 1.5rem; line-height: 1.7; }
+.start-btn {
+  padding: 13px 36px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.start-btn:hover { background: var(--accent-dark); }
+.start-btn:active { transform: scale(0.98); }
+
+.best-badge {
+  display: inline-block;
+  background: var(--info-bg);
+  color: var(--info);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 5px 14px;
+  border-radius: 20px;
+  margin-bottom: 1.25rem;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="screen-start" class="screen active">
+  <div class="card start-screen">
+    <div class="medal-icon">&#128218;</div>
+    <h1>Groß- und Kleinschreibung</h1>
+    <p>3 spielerische Übungen &middot; ca. 10 Minuten<br>Sammle Punkte und schlag deinen eigenen Rekord!</p>
+    <div id="best-display" style="display:none;margin-bottom:1.25rem;">
+      <span class="best-badge">&#127942; Rekord: <span id="best-score-disp"></span> Punkte</span>
+    </div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:1.5rem;" id="round-preview"></div>
+    <button class="start-btn" onclick="startGame()">Jetzt spielen &#8594;</button>
+  </div>
+</div>
+
+<div id="screen-game" class="screen">
+  <div class="score-bar">
+    <div>
+      <div class="label">Punkte</div>
+      <div class="value" id="score-display">0</div>
+    </div>
+    <div class="progress-dots" id="progress-dots"></div>
+    <div style="text-align:right">
+      <div class="label">Runde</div>
+      <div class="value" id="round-display">1</div>
+    </div>
+  </div>
+  <div id="exercise-area"></div>
+</div>
+
+<div id="screen-result" class="screen">
+  <div class="card result-big">
+    <div class="medal-icon" id="result-medal"></div>
+    <div class="score-num" id="result-score"></div>
+    <div class="score-label" id="result-label"></div>
+    <div class="total-label">Gesamtpunkte alle Runden</div>
+    <div class="total-num" id="result-total"></div>
+  </div>
+  <div class="card">
+    <div style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:10px;">Verlauf</div>
+    <div id="history-list"></div>
+  </div>
+  <button class="start-btn" style="width:100%;margin-top:4px;" onclick="startGame()">Nochmal spielen &#8594;</button>
+</div>
+
+</div>
+<script>
+const EXERCISES = [
+  {
+    type: 'sort',
+    title: 'Sortieren',
+    instr: 'Alle W\u00f6rter stehen klein. Entscheide: Wird es gro\u00df oder klein geschrieben? Verben z\u00e4hlen in beiden Spalten als richtig!',
+    words: [
+      {w:'hund', big:true, either:false},
+      {w:'laufen', big:false, either:true},
+      {w:'wien', big:true, either:false},
+      {w:'sch\u00f6n', big:false, either:false},
+      {w:'tisch', big:true, either:false},
+      {w:'rennen', big:false, either:true},
+      {w:'\u00f6sterreich', big:true, either:false},
+      {w:'blau', big:false, either:false},
+      {w:'katze', big:true, either:false},
+      {w:'schwimmen', big:false, either:true},
+      {w:'frau m\u00fcller', big:true, either:false},
+      {w:'schnell', big:false, either:false},
+      {w:'baum', big:true, either:false},
+      {w:'tanzen', big:false, either:true},
+      {w:'salzburg', big:true, either:false},
+      {w:'kalt', big:false, either:false},
+      {w:'schule', big:true, either:false},
+      {w:'singen', big:false, either:true},
+      {w:'m\u00e4dchen', big:true, either:false},
+      {w:'ruhig', big:false, either:false},
+      {w:'freundschaft', big:true, either:false},
+      {w:'lesen', big:false, either:true},
+      {w:'europa', big:true, either:false},
+      {w:'m\u00fcde', big:false, either:false},
+    ]
+  },
+  {
+    type: 'fill',
+    title: 'L\u00fcckentext',
+    instr: 'Zieh das richtige Wort in die L\u00fccke im Satz.',
+    sentences: [
+      { before:'Die ', blank:'Katze', after:' schl\u00e4ft auf dem Sofa.', options:['Katze','katze','Sch\u00f6n','sch\u00f6n'] },
+      { before:'Wir fahren nach ', blank:'Wien', after:' in den Ferien.', options:['wien','Wien','Laufen','laufen'] },
+      { before:'Das ', blank:'Schwimmen', after:' macht mir viel Spa\u00df.', options:['schwimmen','Schwimmen','Blau','blau'] },
+      { before:'', blank:'Frau', after:' M\u00fcller ist unsere Lehrerin.', options:['frau','Frau','Hund','hund'] },
+      { before:'Der ', blank:'Hund', after:' bellt sehr laut.', options:['hund','Hund','Rennen','rennen'] },
+      { before:'Meine Lieblingsstadt ist ', blank:'Salzburg', after:'.', options:['salzburg','Salzburg','Berg','berg'] },
+      { before:'Beim ', blank:'Lesen', after:' vergesse ich die Zeit.', options:['lesen','Lesen','Klein','klein'] },
+      { before:'K\u00f6nnen ', blank:'Sie', after:' mir bitte helfen?', options:['sie','Sie','Schnell','schnell'] },
+      { before:'Im ', blank:'Garten', after:' bl\u00fchen viele Blumen.', options:['garten','Garten','Laufen','laufen'] },
+      { before:'Das ', blank:'M\u00e4dchen', after:' lief durch den Wald.', options:['m\u00e4dchen','M\u00e4dchen','Kalt','kalt'] },
+      { before:'Zum ', blank:'Tanzen', after:' braucht man Musik.', options:['tanzen','Tanzen','Sch\u00f6n','sch\u00f6n'] },
+      { before:'', blank:'Herr', after:' Maier unterrichtet Sport.', options:['herr','Herr','Blau','blau'] },
+      { before:'Mein ', blank:'Bruder', after:' spielt jeden Tag Fu\u00dfball.', options:['bruder','Bruder','Rennen','rennen'] },
+      { before:'Das ', blank:'Laufen', after:' ist mein Lieblingssport.', options:['laufen','Laufen','Kalt','kalt'] },
+      { before:'In ', blank:'\u00d6sterreich', after:' gibt es viele Berge.', options:['\u00f6sterreich','\u00d6sterreich','Blau','blau'] },
+      { before:'Der ', blank:'Lehrer', after:' erkl\u00e4rt die Aufgabe.', options:['lehrer','Lehrer','Schnell','schnell'] },
+      { before:'Wir essen ', blank:'Kuchen', after:' zum Fr\u00fchst\u00fcck.', options:['kuchen','Kuchen','Singen','singen'] },
+      { before:'Das ', blank:'Schreiben', after:' f\u00e4llt mir leicht.', options:['schreiben','Schreiben','Klein','klein'] },
+      { before:'Meine Freundin hei\u00dft ', blank:'Julia', after:'.', options:['julia','Julia','Ruhig','ruhig'] },
+      { before:'Der ', blank:'Wald', after:' ist voller Tiere.', options:['wald','Wald','Laufen','laufen'] },
+      { before:'Bitte helfen ', blank:'Sie', after:' mir!', options:['sie','Sie','Blau','blau'] },
+      { before:'Das ', blank:'Fahrrad', after:' steht vor der T\u00fcr.', options:['fahrrad','Fahrrad','Kalt','kalt'] },
+      { before:'Wir besuchen ', blank:'Graz', after:' im Sommer.', options:['graz','Graz','Rennen','rennen'] },
+      { before:'Das ', blank:'Singen', after:' macht mir gro\u00dfen Spa\u00df.', options:['singen','Singen','Blau','blau'] },
+      { before:'Die ', blank:'Schule', after:' beginnt um acht Uhr.', options:['schule','Schule','Kalt','kalt'] },
+      { before:'', blank:'Herr', after:' Klein kommt aus Berlin.', options:['herr','Herr','Laufen','laufen'] },
+      { before:'Der ', blank:'Apfel', after:' liegt auf dem Tisch.', options:['apfel','Apfel','Sch\u00f6n','sch\u00f6n'] },
+      { before:'Wir lernen ', blank:'Rechnen', after:' in der Schule.', options:['rechnen','Rechnen','Kalt','kalt'] },
+      { before:'Mein Onkel wohnt in ', blank:'Linz', after:'.', options:['linz','Linz','Schnell','schnell'] },
+      { before:'Das ', blank:'Pferd', after:' galoppiert \u00fcber die Wiese.', options:['pferd','Pferd','Blau','blau'] },
+      { before:'', blank:'Frau', after:' Huber ist sehr nett.', options:['frau','Frau','Rennen','rennen'] },
+      { before:'Das ', blank:'Kochen', after:' macht meiner Mutter Spa\u00df.', options:['kochen','Kochen','Klein','klein'] },
+      { before:'In der ', blank:'Bibliothek', after:' gibt es viele B\u00fccher.', options:['bibliothek','Bibliothek','Laufen','laufen'] },
+      { before:'Der ', blank:'Fuchs', after:' ist ein schlauer Waldbewohner.', options:['fuchs','Fuchs','Ruhig','ruhig'] },
+      { before:'Wir feiern in ', blank:'Innsbruck', after:' Weihnachten.', options:['innsbruck','Innsbruck','Blau','blau'] },
+      { before:'Das ', blank:'Spielen', after:' mit Freunden macht Freude.', options:['spielen','Spielen','Kalt','kalt'] },
+    ]
+  },
+  {
+    type: 'correct',
+    title: 'Fehler finden',
+    instr: 'Welches Wort ist FALSCH geschrieben? Zieh es in den Papierkorb.',
+    rounds: [
+      { parts: ['Der ', {w:'hund',wrong:true}, ' bellt laut.'] },
+      { parts: ['Wir wohnen in ', {w:'Wien',wrong:false}, ' und fahren nach ', {w:'graz',wrong:true}, '.'] },
+      { parts: ['Das ', {w:'Schwimmen',wrong:false}, ' macht ', {w:'spass',wrong:true}, '.'] },
+      { parts: ['', {w:'frau',wrong:true}, ' Huber kommt aus ', {w:'Salzburg',wrong:false}, '.'] },
+      { parts: ['Ein ', {w:'fuchs',wrong:true}, ' lief durch den ', {w:'Wald',wrong:false}, '.'] },
+      { parts: ['Das ', {w:'m\u00e4dchen',wrong:true}, ' a\u00df einen ', {w:'Apfel',wrong:false}, '.'] },
+      { parts: ['', {w:'K\u00f6nnen',wrong:false}, ' ', {w:'sie',wrong:true}, ' mir helfen?'] },
+      { parts: ['Im ', {w:'stadtpark',wrong:true}, ' spielten die ', {w:'Kinder',wrong:false}, '.'] },
+      { parts: ['Das ', {w:'lesen',wrong:true}, ' macht ', {w:'Spaß',wrong:false}, '.'] },
+      { parts: ['', {w:'herr',wrong:true}, ' Klein unterrichtet in ', {w:'Wien',wrong:false}, '.'] },
+      { parts: ['Der ', {w:'Baum',wrong:false}, ' im ', {w:'garten',wrong:true}, ' ist alt.'] },
+      { parts: ['Die ', {w:'lehrerin',wrong:true}, ' erkl\u00e4rt die neue Aufgabe.'] },
+      { parts: ['Mein ', {w:'bruder',wrong:true}, ' spielt jeden Tag Fu\u00dfball.'] },
+      { parts: ['Das ', {w:'Schwimmen',wrong:false}, ' im ', {w:'see',wrong:true}, ' macht Spa\u00df.'] },
+      { parts: ['', {w:'Frau',wrong:false}, ' ', {w:'schmidt',wrong:true}, ' kommt aus Hamburg.'] },
+      { parts: ['Der ', {w:'lehrer',wrong:true}, ' schreibt an die Tafel.'] },
+      { parts: ['In ', {w:'\u00d6sterreich',wrong:false}, ' gibt es viele ', {w:'berge',wrong:true}, '.'] },
+      { parts: ['Das ', {w:'Fahrrad',wrong:false}, ' steht vor der ', {w:'t\u00fcr',wrong:true}, '.'] },
+      { parts: ['Wir besuchen ', {w:'graz',wrong:true}, ' im Sommer.'] },
+      { parts: ['Das ', {w:'kochen',wrong:true}, ' macht Freude.'] },
+      { parts: ['Die ', {w:'Katze',wrong:false}, ' sitzt auf dem ', {w:'dach',wrong:true}, '.'] },
+      { parts: ['', {w:'herr',wrong:true}, ' Maier wohnt in Linz.'] },
+      { parts: ['Das ', {w:'laufen',wrong:true}, ' macht fit.'] },
+      { parts: ['Die ', {w:'schule',wrong:true}, ' beginnt um acht Uhr.'] },
+      { parts: ['Ein ', {w:'Fuchs',wrong:false}, ' und ein ', {w:'hase',wrong:true}, ' laufen durch den Wald.'] },
+      { parts: ['Das ', {w:'M\u00e4dchen',wrong:false}, ' liest ein ', {w:'buch',wrong:true}, '.'] },
+      { parts: ['K\u00f6nnen ', {w:'sie',wrong:true}, ' mir bitte helfen?'] },
+      { parts: ['Der ', {w:'apfel',wrong:true}, ' f\u00e4llt vom Baum.'] },
+      { parts: ['Wir feiern in ', {w:'innsbruck',wrong:true}, ' Weihnachten.'] },
+      { parts: ['Das ', {w:'Spielen',wrong:false}, ' mit ', {w:'freunden',wrong:true}, ' macht Freude.'] },
+      { parts: ['Beim ', {w:'singen',wrong:true}, ' wird sie ganz ruhig.'] },
+      { parts: ['', {w:'Frau',wrong:false}, ' ', {w:'huber',wrong:true}, ' unterrichtet Deutsch.'] },
+      { parts: ['Der ', {w:'Baum',wrong:false}, ' im ', {w:'stadtpark',wrong:true}, ' ist sehr alt.'] },
+      { parts: ['Meine ', {w:'schwester',wrong:true}, ' hei\u00dft Julia.'] },
+      { parts: ['Das ', {w:'Rechnen',wrong:false}, ' f\u00e4llt schwer \u2013 das ', {w:'schreiben',wrong:true}, ' auch.'] },
+      { parts: ['Im ', {w:'wald',wrong:true}, ' gibt es viele Tiere.'] },
+    ]
+  }
+];
+
+let state = { round:1, exIdx:0, score:0, dragging:null };
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem('gk_v2_history') || '[]'); } catch(e) { return []; }
+}
+function saveHistory(h) {
+  try { localStorage.setItem('gk_v2_history', JSON.stringify(h.slice(-15))); } catch(e) {}
+}
+function getBest() {
+  const h = loadHistory();
+  return h.length ? Math.max(...h.map(r => r.score)) : null;
+}
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+function startGame() {
+  const h = loadHistory();
+  state = { round: h.length + 1, exIdx: 0, score: 0, dragging: null, touchEl: null, touchClone: null, dropHandlers: new Map() };
+  document.getElementById('score-display').textContent = '0';
+  document.getElementById('round-display').textContent = state.round;
+  updateDots();
+  show('game');
+  renderExercise();
+}
+
+function updateDots() {
+  document.getElementById('progress-dots').innerHTML = EXERCISES.map((_,i) =>
+    `<div class="dot ${i < state.exIdx ? 'done' : i === state.exIdx ? 'active' : ''}"></div>`
+  ).join('');
+}
+
+function addPoints(pts, anchorEl) {
+  state.score += pts;
+  document.getElementById('score-display').textContent = state.score;
+  if (pts > 0 && anchorEl) {
+    const pop = document.createElement('div');
+    pop.className = 'points-pop';
+    pop.textContent = '+' + pts;
+    pop.style.cssText = 'position:relative;display:inline-block;left:8px;top:-4px;';
+    anchorEl.parentNode.insertBefore(pop, anchorEl.nextSibling);
+    setTimeout(() => pop.remove(), 950);
+  }
+}
+
+function nextExercise() {
+  state.exIdx++;
+  if (state.exIdx >= EXERCISES.length) { showResult(); return; }
+  updateDots();
+  renderExercise();
+}
+
+function renderExercise() {
+  const ex = EXERCISES[state.exIdx];
+  if (ex.type === 'sort') renderSort(ex);
+  else if (ex.type === 'fill') renderFill(ex);
+  else renderCorrect(ex);
+}
+
+function setupDrag(el, data) {
+  el.draggable = true;
+  el.addEventListener('dragstart', e => {
+    state.dragging = data;
+    setTimeout(() => el.classList.add('dragging'), 0);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+
+  el.addEventListener('touchstart', e => {
+    e.stopPropagation();
+    state.dragging = data;
+    state.touchEl = el;
+    el.classList.add('dragging');
+    const t = e.touches[0];
+    state.touchClone = el.cloneNode(true);
+    state.touchClone.style.cssText = 'position:fixed;pointer-events:none;opacity:0.85;z-index:9999;margin:0;';
+    state.touchClone.style.left = (t.clientX - el.offsetWidth / 2) + 'px';
+    state.touchClone.style.top = (t.clientY - el.offsetHeight / 2) + 'px';
+    document.body.appendChild(state.touchClone);
+  }, { passive: true });
+
+  el.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    if (state.touchClone) {
+      state.touchClone.style.left = (t.clientX - state.touchClone.offsetWidth / 2) + 'px';
+      state.touchClone.style.top = (t.clientY - state.touchClone.offsetHeight / 2) + 'px';
+    }
+    const hit = document.elementFromPoint(t.clientX, t.clientY);
+    document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('over'));
+    const zone = hit && hit.closest('.drop-zone');
+    if (zone) zone.classList.add('over');
+  }, { passive: false });
+
+  el.addEventListener('touchend', e => {
+    if (state.touchClone) { state.touchClone.remove(); state.touchClone = null; }
+    if (state.touchEl) state.touchEl.classList.remove('dragging');
+    const t = e.changedTouches[0];
+    document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('over'));
+    const hit = document.elementFromPoint(t.clientX, t.clientY);
+    const zone = hit && hit.closest('.drop-zone');
+    if (zone && state.dragging) {
+      const handler = state.dropHandlers && state.dropHandlers.get(zone);
+      if (handler) handler(state.dragging);
+    }
+    state.dragging = null;
+    state.touchEl = null;
+  }, { passive: true });
+}
+
+function setupDrop(zone, onDrop) {
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) zone.classList.remove('over'); });
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('over'); if (state.dragging) onDrop(state.dragging); });
+  if (!state.dropHandlers) state.dropHandlers = new Map();
+  state.dropHandlers.set(zone, onDrop);
+}
+
+function renderSort(ex) {
+  const words = [...ex.words].sort(() => Math.random() - 0.5);
+  let placed = {};
+  let locked = false;
+
+  document.getElementById('exercise-area').innerHTML = `
+    <div class="card">
+      <div class="task-title">${ex.title}</div>
+      <div class="task-instr">${ex.instr}</div>
+      <div class="word-bank" id="bank"></div>
+      <div class="zones-grid">
+        <div>
+          <div class="drop-zone-label" style="color:var(--success)">GROSS geschrieben</div>
+          <div class="drop-zone" id="zone-big"></div>
+        </div>
+        <div>
+          <div class="drop-zone-label" style="color:var(--text2)">klein geschrieben</div>
+          <div class="drop-zone" id="zone-small"></div>
+        </div>
+      </div>
+      <button class="check-btn" id="check-btn" disabled onclick="doCheckSort()">Pr\u00fcfen</button>
+      <div class="feedback" id="fb"></div>
+      <button class="next-btn show" id="skip-btn-s" onclick="nextExercise()" style="opacity:0.6;font-size:13px;">\u00dcbung \u00fcberspringen &#8594;</button>
+      <button class="next-btn" id="nxt" onclick="nextExercise()">N\u00e4chste \u00dcbung &#8594;</button>
+    </div>`;
+
+  const bank = document.getElementById('bank');
+  const zoneBig = document.getElementById('zone-big');
+  const zoneSmall = document.getElementById('zone-small');
+
+  function makeChip(word) {
+    const el = document.createElement('div');
+    el.className = 'drag-word';
+    el.textContent = word.w;
+    el.dataset.key = word.w;
+    setupDrag(el, word);
+    return el;
+  }
+
+  function moveToZone(word, zoneId) {
+    document.querySelectorAll(`[data-key="${word.w}"]`).forEach(e => e.remove());
+    placed[word.w] = zoneId;
+    const zone = zoneId === 'big' ? zoneBig : zoneId === 'small' ? zoneSmall : bank;
+    zone.appendChild(makeChip(word));
+    document.getElementById('check-btn').disabled = locked || Object.keys(placed).length < words.length;
+  }
+
+  words.forEach(word => bank.appendChild(makeChip(word)));
+
+  setupDrop(zoneBig, w => { if (!locked) moveToZone(w, 'big'); });
+  setupDrop(zoneSmall, w => { if (!locked) moveToZone(w, 'small'); });
+  setupDrop(bank, w => {
+    if (!locked) {
+      delete placed[w.w];
+      document.querySelectorAll(`[data-key="${w.w}"]`).forEach(e => e.remove());
+      bank.appendChild(makeChip(w));
+      document.getElementById('check-btn').disabled = true;
+    }
+  });
+
+  window.doCheckSort = () => {
+    locked = true;
+    let correct = 0;
+    let eitherCount = 0;
+    words.forEach(word => {
+      const p = placed[word.w];
+      const chips = document.querySelectorAll(`[data-key="${word.w}"]`);
+      let ok;
+      if (word.either) {
+        ok = true;
+        eitherCount++;
+        chips.forEach(el => { el.classList.add('either'); el.draggable = false; });
+      } else {
+        ok = (word.big && p === 'big') || (!word.big && p === 'small');
+        chips.forEach(el => { el.classList.add(ok ? 'correct' : 'wrong'); el.draggable = false; });
+      }
+      if (ok) correct++;
+    });
+    const pts = correct * 10;
+    addPoints(pts, document.getElementById('check-btn'));
+    const fb = document.getElementById('fb');
+    const eitherNote = eitherCount > 0 ? ` (Verben sind immer richtig \u2013 sie k\u00f6nnen gro\u00df oder klein sein!)` : '';
+    fb.textContent = correct === words.length
+      ? `Super! Alle ${words.length} richtig! +${pts} Punkte${eitherNote}`
+      : `${correct} von ${words.length} richtig. +${pts} Punkte${eitherNote}`;
+    fb.className = 'feedback show ' + (correct === words.length ? 'good' : 'bad');
+    document.getElementById('check-btn').disabled = true;
+    document.getElementById('skip-btn-s').style.display = 'none';
+    document.getElementById('nxt').classList.add('show');
+  };
+}
+
+function renderFill(ex) {
+  const sentences = [...ex.sentences].sort(() => Math.random() - 0.5);
+  let ci = 0;
+  let totalCorrect = 0;
+  let totalPts = 0;
+  let waiting = false;
+
+  document.getElementById('exercise-area').innerHTML = `
+    <div class="card">
+      <div class="task-title">${ex.title}</div>
+      <div class="task-instr">${ex.instr}</div>
+      <div class="round-counter" id="fill-rc"></div>
+      <div id="fill-sent" style="font-size:17px;color:var(--text);line-height:2.8;margin-bottom:1rem;min-height:60px;"></div>
+      <div class="word-bank" id="bank"></div>
+      <div class="feedback" id="fb"></div>
+      <button class="next-btn show" id="skip-btn" onclick="fillSkip()" style="margin-top:6px;opacity:0.6;font-size:13px;">\u00dcbung \u00fcberspringen &#8594;</button>
+      <button class="next-btn" id="nxt" onclick="nextExercise()">N\u00e4chste \u00dcbung &#8594;</button>
+    </div>`;
+
+  window.fillSkip = () => nextExercise();
+
+  function renderSentence() {
+    if (ci >= sentences.length) {
+      document.getElementById('fill-rc').textContent = '';
+      document.getElementById('fill-sent').innerHTML = '';
+      document.getElementById('bank').innerHTML = '';
+      document.getElementById('skip-btn').style.display = 'none';
+      addPoints(totalPts, document.getElementById('nxt'));
+      const fb = document.getElementById('fb');
+      fb.textContent = totalCorrect === sentences.length
+        ? `Perfekt! Alle ${sentences.length} S\u00e4tze richtig! +${totalPts} Punkte`
+        : `${totalCorrect} von ${sentences.length} richtig. +${totalPts} Punkte`;
+      fb.className = 'feedback show ' + (totalCorrect === sentences.length ? 'good' : 'bad');
+      document.getElementById('nxt').classList.add('show');
+      return;
+    }
+
+    waiting = false;
+    const s = sentences[ci];
+    document.getElementById('fill-rc').textContent = `Satz ${ci + 1} von ${sentences.length}`;
+    document.getElementById('fb').className = 'feedback';
+
+    const sentEl = document.getElementById('fill-sent');
+    sentEl.innerHTML = '';
+    const gap = document.createElement('span');
+    gap.className = 'l\u00fccke';
+    gap.id = 'cur-gap';
+    gap.style.cssText = 'display:inline-block;min-width:110px;height:34px;border-bottom:2px solid var(--border2);vertical-align:bottom;text-align:center;padding:0 6px;border-radius:4px 4px 0 0;transition:border-color .2s,background .2s;';
+    sentEl.append(s.before, gap, s.after);
+
+    // tap-to-select fallback for touch
+    const bank = document.getElementById('bank');
+    bank.innerHTML = '';
+    s.options.sort(() => Math.random() - 0.5).forEach(o => {
+      const el = document.createElement('div');
+      el.className = 'drag-word';
+      el.textContent = o;
+      setupDrag(el, { o });
+      // tap fallback
+      el.addEventListener('click', () => {
+        if (waiting) return;
+        handleFillAnswer({ o }, gap, s);
+      });
+      bank.appendChild(el);
+    });
+
+    setupDrop(gap, (data) => {
+      if (waiting) return;
+      handleFillAnswer(data, gap, s);
+    });
+    setupDrop(bank, () => {});
+  }
+
+  function handleFillAnswer(data, gap, s) {
+    waiting = true;
+    gap.innerHTML = '';
+    gap.classList.remove('over');
+    const chip = document.createElement('span');
+    chip.style.cssText = 'font-size:15px;font-weight:500;color:var(--text);';
+    chip.textContent = data.o;
+    gap.appendChild(chip);
+
+    const ok = data.o === s.blank;
+    gap.style.borderColor = ok ? 'var(--success)' : 'var(--danger)';
+    gap.style.background = ok ? 'var(--success-bg)' : 'var(--danger-bg)';
+    if (ok) {
+      totalCorrect++;
+      totalPts += 15;
+    } else {
+      const hint = document.createElement('div');
+      hint.style.cssText = 'font-size:11px;color:var(--success);margin-top:2px;';
+      hint.textContent = '\u2192 ' + s.blank;
+      gap.appendChild(hint);
+    }
+    ci++;
+    setTimeout(renderSentence, 1000);
+  }
+
+  renderSentence();
+}
+
+function renderCorrect(ex) {
+  const rounds = [...ex.rounds].sort(() => Math.random() - 0.5);
+  let ci = 0;
+  let totalPts = 0;
+  let locked = false;
+
+  function handlePick(data) {
+    if (locked) return;
+    locked = true;
+    const ok = data.wrong === true;
+    totalPts += ok ? 20 : 0;
+
+    // mark all words in sentence
+    document.querySelectorAll('#sent .drag-word').forEach(el => {
+      el.draggable = false;
+      el.style.cursor = 'default';
+      if (el.textContent === data.w) {
+        el.classList.add(ok ? 'correct' : 'wrong');
+      }
+    });
+    if (ok) {
+      // also highlight the correct one green if user was right
+    } else {
+      // highlight the actually wrong word red
+      document.querySelectorAll('#sent .drag-word').forEach(el => {
+        const partObj = rounds[ci] && rounds[ci].parts.find(p => typeof p === 'object' && p.w === el.textContent && p.wrong);
+        if (partObj) el.classList.add('wrong');
+      });
+    }
+
+    const fb = document.getElementById('fb');
+    if (ok) {
+      fb.textContent = 'Richtig! Das war der Fehler. +20 Punkte';
+      fb.className = 'feedback show good';
+    } else {
+      const wrongWord = rounds[ci].parts.find(p => typeof p === 'object' && p.wrong);
+      fb.textContent = `Nicht ganz \u2013 "${data.w}" war korrekt. Das falsche Wort war: "${wrongWord ? wrongWord.w : '?'}"`;
+      fb.className = 'feedback show bad';
+    }
+    ci++;
+    setTimeout(() => {
+      fb.className = 'feedback';
+      renderRound();
+    }, 1500);
+  }
+
+  function renderRound() {
+    if (ci >= rounds.length) {
+      addPoints(totalPts, document.getElementById('skip-btn-c'));
+      const correct = Math.round(totalPts / 20);
+      const fb = document.getElementById('fb');
+      document.getElementById('sent').innerHTML = '';
+      document.getElementById('skip-btn-c').style.display = 'none';
+      fb.textContent = `${correct} von ${rounds.length} Fehler gefunden! +${totalPts} Punkte`;
+      fb.className = 'feedback show ' + (correct === rounds.length ? 'good' : 'bad');
+      document.getElementById('nxt').classList.add('show');
+      return;
+    }
+    locked = false;
+    const r = rounds[ci];
+    document.getElementById('rc').textContent = `Satz ${ci + 1} von ${rounds.length}`;
+    document.getElementById('fb').className = 'feedback';
+    const sentEl = document.getElementById('sent');
+    sentEl.innerHTML = '';
+
+    // Build a flat list of all words from parts, preserving wrong flag
+    const knownWrong = r.parts.filter(p => typeof p === 'object').reduce((m, p) => { m[p.w] = p.wrong; return m; }, {});
+
+    r.parts.forEach(part => {
+      const text = typeof part === 'string' ? part : part.w;
+      // split string parts into individual words, keeping spaces
+      const tokens = text.split(/(\s+)/);
+      tokens.forEach(token => {
+        if (/^\s+$/.test(token) || token === '') {
+          sentEl.appendChild(document.createTextNode(token));
+        } else {
+          // strip punctuation for lookup, keep full token for display
+          const bare = token.replace(/[.,!?"“”–—]/g, '');
+          const punct = token.slice(bare.length);
+          const isWrong = knownWrong[bare] === true;
+          const data = { w: bare, wrong: isWrong };
+          const el = document.createElement('span');
+          el.className = 'drag-word';
+          el.style.margin = '0 2px';
+          el.textContent = bare;
+          setupDrag(el, data);
+          el.addEventListener('click', () => handlePick(data));
+          sentEl.appendChild(el);
+          if (punct) sentEl.appendChild(document.createTextNode(punct));
+        }
+      });
+    });
+  }
+
+  document.getElementById('exercise-area').innerHTML = `
+    <div class="card">
+      <div class="task-title">${ex.title}</div>
+      <div class="task-instr">${ex.instr} Tippen geht auch!</div>
+      <div class="round-counter" id="rc"></div>
+      <div class="sentence" id="sent" style="line-height:2.8;margin-bottom:16px;flex-wrap:wrap;"></div>
+      <div style="margin-bottom:6px;">
+        <div class="drop-zone-label" style="color:var(--danger)">Papierkorb \u2013 falsches Wort ablegen oder antippen</div>
+        <div class="drop-zone" id="trash" style="border-color:var(--danger);min-height:52px;"></div>
+      </div>
+      <div class="feedback" id="fb"></div>
+      <button class="next-btn show" id="skip-btn-c" onclick="nextExercise()" style="opacity:0.6;font-size:13px;">\u00dcbung \u00fcberspringen &#8594;</button>
+      <button class="next-btn" id="nxt" onclick="nextExercise()">N\u00e4chste \u00dcbung &#8594;</button>
+    </div>`;
+
+  setupDrop(document.getElementById('trash'), (data) => handlePick(data));
+  renderRound();
+}
+
+function showResult() {
+  const h = loadHistory();
+  h.push({ round: state.round, score: state.score, date: new Date().toLocaleDateString('de-AT') });
+  saveHistory(h);
+
+  const best = Math.max(...h.map(r => r.score));
+  const total = h.reduce((a, r) => a + r.score, 0);
+  const isRecord = state.score >= best && h.length > 1;
+
+  document.getElementById('result-medal').textContent = state.score >= 300 ? '\uD83C\uDFC6' : state.score >= 180 ? '\uD83C\uDF1F' : '\uD83D\uDCDA';
+  document.getElementById('result-score').textContent = state.score;
+  document.getElementById('result-label').textContent = isRecord ? 'Neuer Rekord!' : 'Punkte diese Runde';
+  document.getElementById('result-total').textContent = total + ' Punkte gesamt';
+
+  document.getElementById('history-list').innerHTML = h.slice().reverse().slice(0, 8).map(r =>
+    `<div class="history-row"><span>Runde ${r.round} &middot; ${r.date}</span><strong>${r.score} Punkte</strong></div>`
+  ).join('');
+
+  show('result');
+}
+
+(function init() {
+  const best = getBest();
+  const h = loadHistory();
+  if (best !== null) {
+    document.getElementById('best-display').style.display = 'block';
+    document.getElementById('best-score-disp').textContent = best;
+  }
+  document.getElementById('round-preview').textContent = h.length > 0 ? `Runde ${h.length + 1} \u2013 du hast bisher ${h.length} Runde${h.length !== 1 ? 'n' : ''} gespielt.` : 'Erste Runde \u2013 viel Spa\u00df!';
+})();
+</script>
+</body>
+</html>
